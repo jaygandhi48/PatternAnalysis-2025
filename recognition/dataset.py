@@ -77,13 +77,13 @@ class ISICLesionDataset:
     '''
     def create_yaml(self):
         yaml_content = f"""path: {self.base_dir.absolute()}
-        train: images/train
-        val: images/val
-        test: images/test
+train: images/train
+val: images/val
+test: images/test
 
-        nc: 1
-        names: ['lesion']
-        """
+nc: 1
+names: ['lesion']
+"""
         yaml_path = self.base_dir / "dataset.yaml"
         with open(yaml_path, 'w') as f:
             f.write(yaml_content)
