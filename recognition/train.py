@@ -20,3 +20,16 @@ LOCAL_PATHS = {
     "test_masks": "./ISIC2018/test/masks"
 }
 
+if __name__ == "__main__":
+    dataset = ISICLesionDataset(base_dir="./YOLOv8_ISIC")
+    dataset_yaml = dataset.prepare_dataset(LOCAL_PATHS)
+
+    print("\n--- Training model ---")
+    model = train_model(CONFIG["model_name"], dataset_yaml, CONFIG)
+
+    best_model_path = "./runs/detect/train/weights/best.pt"
+    print("\n--- Evaluating model ---")
+    ious = evaluate_model(dataset, best_model_path, CONFIG)
+
+    print("\n--- Plotting metrics ---")
+    plot_metrics(ious, CONFIG)
