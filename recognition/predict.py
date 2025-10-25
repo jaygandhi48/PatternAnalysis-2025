@@ -57,3 +57,42 @@ def visualize_predictions(dataset, model_path, num_samples=9):
     plt.show()
 
 
+def evaluate_predictions(dataset, model_path):
+    model = YOLO(model_path)
+    test_images = os.listdir(f"{dataset.images_dir}/test")
+    all_ious = []
+
+    for img_name in test_images:
+        img_path = f"{dataset.images_dir}/test/{img_name}"
+        label_path = f"{dataset.labels_dir}/test/{os.path.splitext(img_name)[0]}.txt"
+        if not os.path.exists(label_path):
+            continue
+
+        with open(label_path, "r") as f:
+            gt = list(map(float, f.readline().split()))
+            gt_box = gt[1:]
+
+        results = model.predict(img_path, conf=CONFIG["conf_threshold"], imgsz=CONFIG["img_size"])
+        for r in results:
+            for box in r.boxes.xywhn:
+                iou = calculate_iou(box.tolist(), gt_box)
+                all_ious.append(iou)
+
+    mean_iou = np.mean(all_ious)
+    print(f"\n✅ Mean IoU: {mean_iou:.4f}")
+    print(f"Images above IoU > {CONFIG['iou_threshold']}: {sum(i > CONFIG['iou_threshold'] for i in all_ious)} / {len(all_ious)}")
+
+    plt.hist(all_ious, bins=20, edgecolor="black")
+    plt.axvline(CONFIG["iou_threshold"], color="red", linestyle="--", label="IoU Threshold")
+    plt.xlabel("IoU")
+    plt.ylabel("Frequency")
+    plt.legend()
+    plt.title("IoU Distribution (Predictions)")
+    plt.savefig("iou_distribution_predict.png")
+    plt.show()
+
+
+if __name__ == "__main__":
+    dataset = ISICLesionDataset(base_dir=DATASET_DIR)
+    evaluate_predictions(dataset, MODEL_PATH)
+    visualize_predictions(dataset, MODEL_PATH)
