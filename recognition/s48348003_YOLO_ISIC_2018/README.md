@@ -190,6 +190,8 @@ The model was trained using default YOLO IoU threshold of 0.5 however evaluation
 
 ![Results](./readmeImages/BoxPR_Curve_from_Colab.png)
 
+![Results](./readmeImages/BoxP_Curve_from_Colab.png)
+
 ![Results](./readmeImages/Box_F1_Curve.png)
 
 The model achieves a high mAP@0.5 of 0.97 and a peak F1-score of 0.93 at a confidence threshold of 0.43. The Precision–Recall curve demonstrates that the model maintains high precision across varying recall levels, indicating strong detection capability with minimal false positives. The F1–Confidence curve further highlights a good balance between precision and recall, with a broad stable region followed by a sharp decline at higher confidence thresholds, suggesting reliable performance and well-calibrated predictions.
