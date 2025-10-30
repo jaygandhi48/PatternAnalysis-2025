@@ -203,6 +203,7 @@ Above showcases the predictions of bounding boxes around skin lesions for testin
 It can be seen through IoU distribution of images, that it is positively skewed. Most Images lie above the threshold of 0.8 as shown in the image. Statsitically, approximately 80% images that were detected as positive, had an IoU score of over 0.8 as shown throgh the precision score. Below showcases the extended metrics:
 
 ![Evaluation Metrics Table](./readmeImages/EvalTable.png)
+
 The comprehensive evaluation metrics demonstrate strong model performance:
 
 - Total Test Images: 1,000 images evaluated
