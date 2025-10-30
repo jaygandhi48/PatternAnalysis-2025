@@ -155,3 +155,127 @@ The total YOLO loss is a weighted combination of these three components:
 $$L_{\text{total}} = \lambda_{\text{loc}} \cdot L_{\text{CIoU}} + \lambda_{\text{conf}} \cdot L_{\text{conf}} + \lambda_{\text{cls}} \cdot L_{\text{cls}}$$
 
 Where $\lambda$ values are weighting factors that balance the contribution of each loss component during training.
+
+## Data preparation
+
+In ISIC2018 dataset, the ground truth masks are segmentation masks, showcasing the skin lesion as white in colour and the background as black. However, this is not acceptable format as for detection and classifcation, bounding boxes need to be calculated. Therefore, the data is preprocessed to calculate bounding boxes around masks and stored in labels subdirectory for each validation, training adn testng ground truths. Furthermore, the images are scaled down to 640 by 640 and normalised in order to increase model speed due to decreased compuration on the smaller images sizes in training. The process of data preparation is done through the file [train.py](./train.py) file.
+
+## Yaml Config
+
+In order to train the model, a yaml configuration is required, which specifies details about the training required for the model. This includes, the dataset paths, the number of classes that are going to be detected as well as their names.
+
+Inside modules.py, the create_yaml function automatically generties this file based on dataset directory structure. Below showcases the content of the yaml file:
+
+```yaml
+path: /absolute/path/to/dataset
+train: images/train
+val: images/val
+test: images/test
+
+nc: 1
+names: ["lesion"]
+```
+
+## Training
+
+The model was trained for 50 epochs with a batch size of 16. During training, the network learned to predict bounding boxes around lesions, optimizing for accurate detection and localization. Metrics such as precision, recall, and F1-score were monitored, and the model weights were saved periodically for evaluation.
+
+After training was finished, the model was evaluated on IoU theshold of 0.8 with the following metrics: IoU, precision, recall and F1-Scores. Below is a detailed evaluation of the model
+![Results](./readmeImages/ValidationData.jpeg)
+
+## Evaluation and Results
+
+![Results](./readmeImages/latestResults.png)
+The model was trained using default YOLO IoU threshold of 0.5 however evaluation was done with a stricter threshold of 0.8 IoU. This is due to high precision and accuracy of localisation required in medical context.The validation box loss showcases some minor fluctuations due to complex dataset involving irregular skin lesion boundaries. However, in general there is no sign of overfitting as the validation box loss is overall decreasing.
+
+![Results](./readmeImages/BoxPR_Curve_from_Colab.png)
+
+![Results](./readmeImages/Box_F1_Curve.png)
+
+The model achieves a high mAP@0.5 of 0.97 and a peak F1-score of 0.93 at a confidence threshold of 0.43. The Precision–Recall curve demonstrates that the model maintains high precision across varying recall levels, indicating strong detection capability with minimal false positives. The F1–Confidence curve further highlights a good balance between precision and recall, with a broad stable region followed by a sharp decline at higher confidence thresholds, suggesting reliable performance and well-calibrated predictions.
+
+## Prediction
+
+![Results](./readmeImages/predictions.png)
+Above showcases the predictions of bounding boxes around skin lesions for testing dataset. The evaluation metrics on IoU threshold is shown below:
+
+![Evaluation Metrics](./readmeImages/EvalMatrics.png)
+It can be seen through IoU distribution of images, that it is positively skewed. Most Images lie above the threshold of 0.8 as shown in the image. Statsitically, approximately 80% images that were detected as positive, had an IoU score of over 0.8 as shown throgh the precision score. Below showcases the extended metrics:
+
+![Evaluation Metrics Table](./readmeImages/EvalTable.png)
+The comprehensive evaluation metrics demonstrate strong model performance:
+
+- Total Test Images: 1,000 images evaluated
+- Detections Made: 823 lesions detected (82.3% detection rate)
+- Meeting IoU ≥ 0.8: 654 detections (65.4% of total images)
+- Mean IoU: 0.8500 – well above the target threshold
+
+At the strict evaluation threshold of IoU ≥ 0.8, the model achieves:
+
+- Precision: 0.7947 (79.47%) – approximately 80% of detected lesions meet the high localization standard, indicating minimal false positives with accurate bounding boxes
+- Recall: 0.7870 (78.70%) – the model successfully detects roughly 79% of all lesions in the test set with high localization accuracy
+- F1-Score: 0.7908 (79.08%) – excellent balance between precision and recall, demonstrating consistent performance
+
+# Analysis and Discussion
+
+The predictions and results on the test cases showcases the finetuned YOLOv8 model succesfully achieved IoU > 0.8 on majority of the dataset. The mean IoU is approximately 0.85 suggests the model consistently localises the lesion and accurately encompasses skin lesions.
+
+The precision of 0.79 suggests when a lesion is predicted, the model is highly accurate as well as precisely localised. The balance of recall and precision can also be used as a classifcation metrics as its a single class object detection task. The F1-score of 0.79 reflects on the models classifcation results where it avoids flase detection (high precision) and it's able to accuratly detect true lesions (represented by the recall)
+
+Overall, the model is able to correctly classify and detect skin lesions, and majority of the detections have IoU of over 0.8, ideal for the context of medical Imaging.
+
+# Reproducibility
+
+In order to reproduce this research, conduct the following procedure:
+
+1. Download the ISIC 2018 dataset from [ISIC 2018](https://challenge.isic-archive.com/data/#2018).
+
+2. Clone this repository and ensure the folder structure is correct, including the dataset inside the root folder.
+
+Use the following command:
+
+```bash
+git clone <repo-url>
+cd s48348003_YOLO_ISIC_2018
+conda create env
+pip install -r requirements.txt
+```
+
+3. In order to train the model, run the following command
+
+```bash
+python3 train.py
+```
+
+4. In order to predict lesions from test folder, run the following command:
+
+```bash
+python3 predict.py
+```
+
+All the graphs/metrics for validation and training will be aviable in the following directory:
+
+```bash
+/runs/detect/
+```
+
+## References
+
+1. **Skin Cancer Foundation.** "Skin Cancer Facts & Statistics."  
+   [https://www.skincancer.org/skin-cancer-information/skin-cancer-facts/](https://www.skincancer.org/skin-cancer-information/skin-cancer-facts/)
+
+2. **ISIC 2018:** Skin Lesion Analysis Towards Melanoma Detection.  
+   [https://challenge.isic-archive.com/data/#2018](https://challenge.isic-archive.com/data/#2018)
+
+3. **Redmon, J., Divvala, S., Girshick, R., & Farhadi, A.** (2016). _You Only Look Once: Unified, Real-Time Object Detection._  
+   _Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)._  
+   [https://arxiv.org/abs/1506.02640](https://arxiv.org/abs/1506.02640)
+
+4. **Ultralytics.** _YOLOv8 Documentation._  
+   [https://docs.ultralytics.com/](https://docs.ultralytics.com/)
+
+5. **Viso.ai.** "YOLOv8: A Complete Guide."  
+   [https://viso.ai/wp-content/uploads/2023/12/YOLOv8-Architecture-Structure-1012x1060.jpg](https://viso.ai/wp-content/uploads/2023/12/YOLOv8-Architecture-Structure-1012x1060.jpg) [Image 1]
+
+6. **DataCamp.** "YOLO Object Detection Explained"  
+   [YOLO Object Detection Explained](https://www.datacamp.com/blog/yolo-object-detection-explained) [Image 2]
