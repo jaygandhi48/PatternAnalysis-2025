@@ -5,10 +5,17 @@ import pandas as pd
 import cv2
 from pathlib import Path
 
-"""
-    Calculate IoU between two boxes [x_center, y_center, width, height].
-"""
 def calculate_iou(box1, box2):
+    """
+    Calculate IoU (Intersection over Union) between two bounding boxes.
+    
+    Args:
+        box1, box2: Boxes in YOLO format [x_center, y_center, width, height] (normalized 0-1)
+    
+    Returns:
+        float: IoU score between 0 and 1
+    """
+    # Convert from center format to corner format (x1, y1, x2, y2)
     box1_x1 = box1[0] - box1[2] / 2
     box1_y1 = box1[1] - box1[3] / 2
     box1_x2 = box1[0] + box1[2] / 2
@@ -19,11 +26,13 @@ def calculate_iou(box1, box2):
     box2_x2 = box2[0] + box2[2] / 2
     box2_y2 = box2[1] + box2[3] / 2
 
+    # Calculate intersection rectangle
     x1 = max(box1_x1, box2_x1)
     y1 = max(box1_y1, box2_y1)
     x2 = min(box1_x2, box2_x2)
     y2 = min(box1_y2, box2_y2)
 
+    # Calculate intersection and union areas
     intersection = max(0, x2 - x1) * max(0, y2 - y1)
     box1_area = (box1_x2 - box1_x1) * (box1_y2 - box1_y1)
     box2_area = (box2_x2 - box2_x1) * (box2_y2 - box2_y1)
@@ -31,7 +40,17 @@ def calculate_iou(box1, box2):
     return intersection / union if union > 0 else 0
 
 def train_model(model_config, dataset_yaml, config):
-    """Train YOLOv8 model."""
+    """
+    Train YOLOv8 model on ISIC lesion dataset.
+    
+    Args:
+        model_config: Path to YOLO model configuration file
+        dataset_yaml: Path to dataset YAML file
+        config: Training configuration dictionary
+    
+    Returns:
+        Trained YOLO model object
+    """
     model = YOLO(model_config)
     results = model.train(
         data=dataset_yaml,
@@ -54,14 +73,24 @@ def train_model(model_config, dataset_yaml, config):
     return model
 
 def evaluate_model(dataset, model_path, config):
-    """Evaluate model on test set and compute metrics."""
+    """
+    Evaluate trained model on test set and calculate performance metrics.
+    
+    Args:
+        dataset: ISICLesionDataset object containing dataset paths
+        model_path: Path to trained model weights (.pt file)
+        config: Configuration dictionary with thresholds
+    
+    Returns:
+        dict: Contains precision, recall, F1-score, mean IoU, results DataFrame, and IoU scores list
+    """
     model = YOLO(model_path)
     test_images_dir = Path(dataset.images_dir) / 'test'
     test_labels_dir = Path(dataset.labels_dir) / 'test'
 
     results_data = []
     iou_scores = []
-    tp, fp, fn = 0, 0, 0
+    tp, fp, fn = 0, 0, 0  # True positives, false positives, false negatives
 
     image_files = sorted(list(test_images_dir.glob('*.jpg')) + list(test_images_dir.glob('*.png')))
 
@@ -72,17 +101,20 @@ def evaluate_model(dataset, model_path, config):
         if not label_path.exists():
             continue
 
+        # Read ground truth bounding box from label file
         with open(label_path, 'r') as f:
             gt_line = f.readline().strip().split()
-            gt_box = [float(x) for x in gt_line[1:]]
+            gt_box = [float(x) for x in gt_line[1:]]  # Skip class label, get [x, y, w, h]
 
+        # Run model prediction
         results = model.predict(str(img_path),
                                 conf=config['conf_threshold'],
                                 iou=config['iou_threshold'],
                                 verbose=False)
 
+        # Process prediction results
         if len(results) > 0 and len(results[0].boxes) > 0:
-            pred_box = results[0].boxes.xywhn[0].cpu().numpy()
+            pred_box = results[0].boxes.xywhn[0].cpu().numpy()  # Normalized xywh format
             conf = float(results[0].boxes.conf[0].cpu().item())
             iou = calculate_iou(pred_box, gt_box)
             iou_scores.append(iou)
@@ -99,6 +131,7 @@ def evaluate_model(dataset, model_path, config):
             else:
                 fp += 1
         else:
+            # No detection made
             results_data.append({
                 'image': img_name,
                 'iou': 0.0,
@@ -108,11 +141,13 @@ def evaluate_model(dataset, model_path, config):
             })
             fn += 1
 
+    # Calculate evaluation metrics
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0
     f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
     mean_iou = np.mean(iou_scores) if iou_scores else 0
 
+    # Save detailed results to CSV
     df = pd.DataFrame(results_data)
     df.to_csv('detailed_results.csv', index=False)
 
@@ -126,7 +161,13 @@ def evaluate_model(dataset, model_path, config):
     }
     
 def plot_metrics(eval_results, config):
-    """Plot IoU distribution."""
+    """
+    Plot IoU score distribution histogram.
+    
+    Args:
+        eval_results: Dictionary containing evaluation results from evaluate_model()
+        config: Configuration dictionary with IoU threshold
+    """
     df = eval_results['results_df']
     iou_scores = eval_results['iou_scores']
 
